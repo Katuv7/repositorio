@@ -1,0 +1,444 @@
+---
+title: "Examen Simulación"
+author: "Primer Bimestre"
+date: "14 de julio de 2020"
+output:
+  html_document:
+    df_print: paged
+  toc: yes
+  bookdown::html_document2: null
+  pdf_document: default
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Apellidos**: Gavilanes Guerrero
+  
+**Nombre**: Viviana 
+  
+# Teoría
+  
+## Inversión
+  
+Describir un algoritmo basado en el método de inversión que permita generar
+observaciones de una variable aleatoria con distribución exponencial "inflada 
+con ceros" (*zero inflated*), con función de distribución: 
+  $$F(x)=\left\{
+    \begin{array}{ll}
+    0 & \text{si } x < 0,\\
+    \pi + \left( 1-\pi \right)\left(1-e^{-\lambda x}\right) & \text{si } x \ge 0,
+    \end{array}
+    \right.$$
+      
+siendo $\pi = P(X=0) \ge 0$.
+
+#### _Solución:_
+
+Para describir el algoritmo basado en el método de inversión debemos encontrar $F^{-1}$, la inversa de $F$.
+
+Analicemos:
+
++ Si $x<0$, la función inversa toma el valor de $0$.
+  
+
++ Si $x \geq 0$:
+
+Tenemos que 
+    $$\pi + (1 - \pi) (1-e^{-\lambda x}) = u,$$
+    de donde, al despejar $e^{-\lambda x}$, obtenemos que
+    $$e^{-\lambda x} = \frac{1-u}{1-\pi}, $$ de esta expresión, es claro que $\pi \neq 1$.
+    Tomando el logaritmo natural en ambos lados de la última igualdas y despejando $x$ se tiene que
+    $$  x = -\frac{1}{\lambda} \text{ln} \left(\frac{1-u}{1-\pi} \right).$$
+    Recordando la relación entre una función y su inversa, tenemos que: $$F^{-1}(x)= x = G(u) = -\frac{1}{\lambda} \text{ln} \left(\frac{1-u}{1-\pi} \right).$$   
+    Ahora, analicemos en para qué valores de $u$ está bien definida. Tenemos dos condiciones:
+    
+  + $x \geq 0$ lo que implica que $-\frac{1}{\lambda} \text{ln} \left(\frac{1-u}{1-\pi} \right) \geq 0$, de donde:
+  
+  \begin{align*}
+    -\frac{1}{\lambda} \text{ln} \left(\frac{1-u}{1-\pi} \right) &\geq 0 \\
+     \text{ln} \left(\frac{1-u}{1-\pi} \right) &\leq 0 \\
+    e^{ \text{ln} \left(\frac{1-u}{1-\pi} \right)} & \leq e^{0}\\
+    \frac{1-u}{1-\pi} &\leq 1\\
+    1-u &\leq 1 - \pi.
+  \end{align*}
+  Por lo tanto, 
+  \begin{equation}\tag{1}
+    u \geq \pi.
+  \end{equation}
+  
+  + Como el logaritmo natural está definido en argumentos estrictamente mayores que 0, también debe cumplirse que $$\frac{1-u}{1-\pi} > 0,$$ de donde
+  
+  \begin{equation}\tag{2}
+    u < 1.
+  \end{equation}
+  
+  En resumen, de (1) y (2), tenemos que $$\pi \leq u < 1.$$
+
+Así, definimos la inversa de $F$ como sigue:
+
+  $$G(u)=\left\{
+    \begin{array}{ll}
+    -\frac{1}{\lambda} \text{ln}\left( \frac{1-u}{1-\pi}\right) & \text{si } \pi \leq u < 1,\\
+    0 & \text{en otro caso.}
+    \end{array}
+    \right.$$
+
+***
+Formulamos el algoritmo de inversión para este caso.
+
+#### __Algoritmo de Inversión__
+
+1. Definir el valor de $\lambda$ y $\pi$.
+2. Generar $U \sim \mathcal{U}(0,1).$
+2. Si $\pi \leq U < 1$, entonces devolver $X = -\frac{1}{\lambda} \text{ln}\left( \frac{1-U}{1-\pi}\right)$
+
+***
+
+Ejemplo práctico (no se pidió pero me pareció interesante desarrollarlo). Tomaré el caso particular cuando $\pi = 0$ en donde es evidente que $f(x)$ coincide con una exponencial de parámetro $\lambda$ y tomaré $\lambda = 1$.
+
+Defino las funciones necesarias con base en el __Algoritmo de Inversión__
+
+```{r}
+lambda<<-1
+pi_X<<-0
+
+
+set.seed(54321)
+
+F_x <- function(x){
+         return(pi_X+((1-pi_X)*(1-exp(-lambda*x))))
+}
+
+F_x_2 <- function(lambda,pi_X){
+  if(x >= 0)
+    return(pi_X+((1-pi_X)*(1-exp(-lambda*x))))
+}
+
+
+F_inv <- function(lambda =1,pi_X){
+  # Simulación 
+  U <- runif(1,min=0,max=1)
+  if(pi_X <= U && U < 1 ){
+    return(-1/lambda * log((1-U)/(1-pi_X)))
+  }
+  else(return(0))
+}
+
+
+F_inv_n <- function(n=1000){
+  # muestra de n valores de la distribución cero inflated
+  x <- numeric(n)
+  for (i in 1:n) x[i] <- F_inv(lambda,pi_X)
+  return(x)
+}
+
+
+```
+
+Generamos la muestra
+
+```{r}
+system.time(x<- F_inv_n(1000))
+
+
+```
+
+Graficamos para comparar la simulación con la parte teórica.
+
+```{r}
+hist(x,breaks="FD", freq=FALSE,xlim = c(0,7), main="Simulación vs. Densidad real con pi = 0 y lambda = 1")
+curve(dexp(x, lambda), lwd = 2, add = TRUE, col='red')
+
+```
+
+Vemos que los datos simulados se ajustan a la distribución exponencial de parámetro $\lambda = 1$.
+
+***
+    
+## Aceptación-rechazo
+  
+Dar un algoritmo basado en el método de aceptación-rechazo
+(considerando como densidad auxiliar una uniforme) que permita generar observaciones de una variable aleatoria bidimensional
+$\left( X,Y\right)$ con función de densidad: 
+      $$f(x,y)=\left\{ 
+        \begin{array}{cl}
+        \frac{1}{8} \left( x + y \right) & \text{si } 0 \le x \le 2 ,  0 \le y \le 2\\ 
+        0 & \text{en otro caso}
+        \end{array}
+        \right.$$
+        
+¿Cuál sería el valor esperado de generaciones de la densidad auxiliar?
+
+#### _Solución_
+
+Definimos la densidad uniforme $g(x,y)$ sobre $[0,2]\times[0,2]$, dado que el área sobre este cuadrado es igual a $4$ y al integrar $g$ para ser densidad el valor debe ser igual a $1$ entonces tenemos que
+
+$$g(x,y)=\left\{ 
+        \begin{array}{cl}
+        \frac{1}{4}  & \text{si } 0 \le x \le 2 ,  0 \le y \le 2\\ 
+        0 & \text{en otro caso}
+        \end{array}
+        \right.$$
+   
+Como $f(x,y) \leq M = f(2,2) = \frac{1}{2}$, tomando 
+$$c = \frac{M}{g(x,y)}= \frac{\frac{1}{2}}{\frac{1
+}{4}} = 2.$$ Tenemos que $$f(x,y) \leq c \, g(x,y) = M.$$
+
+Recordando que $$E(N) = c,$$ concluimos que el valor esperado de generaciones de la densidad auxiliar es $$E(N) = 2.$$
+
+Otra forma de calcular $c$:
+
+$$ c= \max_{\{(x,y) : g(x,y)>0\}} \frac{f(x,y)}{g(x,y)}$$
+
+Evidentemente el valor máximo de $f(x,y)$ se alcanza en $(x,y)=(2,2)$. Por lo tanto $$c = \frac{f(2,2)}{\frac{1}{4}} = 2$$
+
+
+***
+Formulamos el algoritmo del método de aceptación-rechazo para este caso.
+
+#### __Algoritmo de Aceptación-rechazo__
+
+1. Generar $U \sim \mathcal{U}(0,1)$.
+2. Generar $X, Y \sim \mathcal{U}(0,2).$
+3. Si $\frac{1}{2} \cdot U \cdot g(X,Y) \leq f(X,Y)$, entonces devolver $\text{Par}=(X,Y)$.
+4. En caso contrario volver al paso 1. 
+
+***
+
+Ejemplo práctico (no se pidió pero me pareció interesante desarrollarlo). Primero definimos las funciones necesarias:
+
+```{r}
+
+# Implementamos la función original:
+
+f_xy<-function(x,y){
+  if (x<=2 && x>=0  && y<=2 && y>=0  )
+  {
+    return((x+y)/8)
+  }
+  else {return(0)}
+}
+
+# Definimos la función de densidad auxiliar uniforme
+
+
+g_xy <-function(x,y){
+  if (x<=2 && x>=0  && y<=2 && y>=0 ){
+    return(1/4)
+  }
+  else {return(0)}
+}
+
+
+
+rx_ex <- function(){
+  #Simulación por aceptación-rechazo
+  M <- 1/2
+  ngen<<-0
+  while(TRUE){
+    U <- runif(1,1)
+    X<-runif(1,0,2)
+    Y<-runif(1,0,2)
+    par<-c(X,Y)
+    ngen <<- ngen+1 # Comentar esta línea para uso normal
+    if(M*U*g_xy(X,Y)/f_xy(X,Y)<= 1) 
+    {
+      return(par)
+    }
+  }
+}
+
+rx_exn<-function(nsim=1000){
+  x<-numeric(2*nsim)
+  x<-matrix(x,nrow=nsim)
+  #ngen<<-0
+  for(i in 1:nsim) {
+    x[i,1]<-rx_ex()[1]
+    x[i,2]<-rx_ex()[2]
+   # ngen <<- ngen+1 # Comentar esta línea para uso normal
+  }
+  return(x)
+}
+
+```
+
+Obtenemos la muestra:
+
+```{r}
+
+system.time(muestra2<- rx_exn(1000))
+```
+
+Graficamos el plot de puntos:
+
+```{r, warning = FALSE, echo =FALSE}
+plot(muestra2[,1],muestra2[,2])
+calculado<-f_xy(muestra2[,1],muestra2[,2])
+```
+
+Graficamos en 3D la comparación simulada vs teórica:   
+
+```{r, warning = FALSE, echo =FALSE}
+library(plot3D)
+
+
+x<-seq(0,2,by=0.01)
+y<-seq(0,2,by=0.01)
+fevaluado<- f_xy(x,y)
+z <- outer(x,y,f_xy)
+#persp3D(x,y,z)
+
+par(mfrow=c(1,2))
+lines3D(muestra2[,1],muestra2[,2],calculado, col=NULL,labels=TRUE,main='Simulado')
+persp3D(x,y,z,labels=TRUE,main='Teórico')
+```
+
+```{r, echo=FALSE}
+cat("El número de generaciones es igual a", ngen + 1)
+```
+
+
+***
+
+# Práctica
+        
+Estamos interesados en una variable con función de densidad 
+$Gamma(s,r)$:
+$$f(x)=\frac{r^{s}}{\Gamma (s)}x^{s-1}e^{-rx}\text{ si }x\geq 0,$$
+(siguiendo la notación de la función `dgamma(x, shape, rate)` de `R`).
+Escribir el código necesario para generar, por el método de
+aceptación-rechazo, una muestra de $n$ observaciones de una
+distribución $Gamma(3,3)$ empleando como densidad auxiliar una
+exponencial (`dexp(x, rate)`):
+$$g(x)=\lambda e^{-\lambda x}\text{ si }x\geq 0.$$
+(NOTA: Emplear la función $\Gamma (s)$ implementada en R: gamma(s) ).
+
+#### _Solución_
+
+
+Definimos las funciones adecuadas para aplicar el método de aceptación-rechazo:
+
+```{r}
+ngen<-0
+
+f_x_gamma <-function(x,s,r){
+  if(x>=0){
+    # f(x) = xe^{-x} si x >= 0
+    return((r^s/gamma(s))*x^(s-1)*exp(-r*x))
+  }
+}
+
+g_x<- function(x,lambda){
+  if(x>=0){
+    return(lambda*exp(-lambda*x))
+  }
+}
+
+
+rdexp_aux <- function(lambda = 1){
+  # Inversa de la exponencial
+  U <- runif(1)
+  return(-log(1-U)/lambda)
+}
+
+rx_ex_gamma <- function(){
+  #Simulación por aceptación-rechazo
+  #f(x) = x e^{-x}, si x >= 0
+  while(TRUE){
+    U <- runif(1)
+    #X <-lambda.opt1*exp(-lambda.opt1*x)
+    X <- rdexp_aux(lambda.opt1)
+    ngen <<- ngen+1 # Comentar esta línea para uso normal
+    if(c.opt1*U*g_x(X,lambda.opt1)/f_x_gamma(X,r,s)<= 1) return(X)
+  }
+}
+
+rx_exn<- function(n=1000) {
+  # Simulación n valores f_x
+  x <- numeric(n)
+  ngen <<- 0 # Comentar esta línea para uso normal
+  for(i in 1:n) x[i]<-rx_ex_gamma()
+  return(x)
+}
+
+```
+
+  __a) Aproximar numéricamente el parámetro óptimo ($\lambda_{\text{opt}} < 1$) y la cota óptima ($c_{\text{opt}}$) de: $\lambda _{opt}=1$ y $c_{opt}=\frac{27}{2e^2}$.:__
+
+
+
+```{r}
+# Valores teóricos:
+c.opt1<-27/(2*exp(2))
+lambda.opt1 <- 1
+r<-3
+s<-3
+
+# Obtención de valores c y lambda óptimos aproximados
+fopt <- function(lambda) {
+  # Obtiene c fijado lambda
+  optimize(f = function(x){f_x_gamma(x,r,s)/g_x(x,lambda)},
+           maximum=TRUE, interval=c(0,2))$objective
+}
+
+# Encontar lambda que minimiza
+res <- optimize(f=function(x){fopt(x)}, interval=c(0,2))
+lambda.opt2 <- res$minimum
+c.opt2 <- res$objective
+```
+Luego de realizar la simulación obtenemos que:
+
+```{r, echo=FALSE}
+cat("El lambda óptimo es igual a ", lambda.opt2)
+cat("El c óptimo es igual a ", c.opt2)
+
+```
+  
+ Comparamos el valor de $\lambda_{\text{opt}}$ y $c_{\text{opt}}$ con los valores de la simulación mediante el calculo del error: 
+  
+```{r, echo=FALSE}
+cat("El error absoluto del lambda óptimo simulado con respecto al valor teórico es", abs(lambda.opt2-lambda.opt1))
+cat("El error absoluto del c óptimo simulado con respecto al valor teórico es", abs(c.opt2-c.opt1))
+
+```
+
+
+
+
+
+  __b) Generar una muestra de $1000$ observaciones de la distribución de interés tomando como semilla inicial los cuatro primeros dígidos de la cédula. Obtener el tiempo de CPU que tarde en generar la secuencia y calcular el número medio de generaciones de la distribución auxiliar.__
+
+ Generamos $1000$ muestras de la distribución de interés. El tiempo del CPU es:   
+
+   
+```{r}
+nsim <- 10^4
+set.seed(1726)
+system.time(x<-rx_exn(nsim)) 
+
+```
+
+Obtenemos la información sobre las generaciones de la distribución auxiliar:
+
+```{r, echo=FALSE}
+cat("No. de generaciones de la distribución auxiliar = ", ngen)
+cat("No. medio de generaciones de la distribución auxiliar = ", ngen/nsim)
+cat("Proporción de rechazos = ", 1-nsim/ngen,"\n")
+```
+  
+  __c) Representar el histograma y compararlo con la densidad teórica.__
+  
+```{r, warning=FALSE,echo=FALSE}
+ 
+hist(x, breaks="FD", freq=FALSE,xlim = c(0,8), main="Simulación vs. Densidad real")
+curve(f_x_gamma(x,3,3),col='red', add=TRUE)
+```
+
+  
+#### Conclusiones:
+
+  + Tanto para el valor del $\lambda_{\text{opt}}$ como para el del $c_{\text{opt}}$ vemos que el error es muy próximo a $0$. Por lo tanto, la aproximación es exitosa.
+  + El número de generaciones de la distribución auxiliar es igual a $18536$ y el número medio igual a $1.8536$. Por otro lado, el porcentaje de rechazo es aproximadamente el $46.05\%$.
+  + Al comparar el histograma con la densidad teórica tenemos que los datos simulados se ajustan exitosamente a la densidad teórica.
